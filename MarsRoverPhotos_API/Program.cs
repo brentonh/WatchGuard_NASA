@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,11 +21,18 @@ namespace MarsRoverPhotos_API
             //Images stored in a folder per date within StoredMarsRoverPhotos folder in sln root directory
             //Error logging stored in Errors folder in sln root
 
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+            List<Task> tasks = new List<Task>();
+
             foreach (var date in Support.getDatesFromFile(Support.StoragePath + @"\dates.txt"))
             {
-                Support.GetMarsRoverPhotos(date);
+                tasks.Add(Support.GetMarsRoverPhotos(date));
             }
-            Console.WriteLine("Complete");
+            Task.WaitAll(tasks.ToArray());
+
+            sw.Stop();
+            Support.LogEvent($"Completed storage of {Support.imageCount} images in {sw.Elapsed.ToString()}");
         }
     }
 }

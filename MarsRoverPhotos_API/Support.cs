@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Http;
 using Newtonsoft.Json;
@@ -16,103 +17,152 @@ namespace MarsRoverPhotos_API
         static string[] Rovers = new string[] { "curiosity", "opportunity", "spirit" };
         //Path could be tweaked as desired, modified default, user input, etc
         public static string StoragePath = new DirectoryInfo(Environment.CurrentDirectory).Parent.Parent.Parent.FullName;
+        public static List<ManifestData> manifests = new List<ManifestData>();
+        static ReaderWriterLock locker = new ReaderWriterLock();
+        public static int imageCount = 0;
 
-        public static void GetMarsRoverPhotos(DateTime date)
+        public static async Task GetMarsRoverPhotos(DateTime date)
         {
-            Console.WriteLine($"Checking for valid rover for date {date.ToString("yyyy-M-d")}");
+            LogEvent($"Checking for valid rover for date {date.ToString("yyyy-M-d")}");
             string rover = getRoverForDate(date);
-            Console.WriteLine($"Rover {rover} found");
-            using (var client = new HttpClient())
+            LogEvent($"Rover {rover} found for {date.ToString("yyyy-M-d")}");
+
+            try
             {
-                Console.WriteLine($"Getting image list for {rover} on {date.ToString("yyyy-M-d")}");
-                client.BaseAddress = new Uri(Endpoint);
-                var responseTask = client.GetAsync($"rovers/{rover}/photos?api_key={APIKey}&earth_date={date.ToString("yyyy-M-d")}");
-                responseTask.Wait();
-
-                var result = responseTask.Result;
-                if (result.IsSuccessStatusCode)
+                using (var client = new HttpClient())
                 {
-                    var readTask = result.Content.ReadAsStringAsync();
-                    readTask.Wait();                    
+                    LogEvent($"Getting image list for {rover} on {date.ToString("yyyy-M-d")}");
+                    client.BaseAddress = new Uri(Endpoint);
+                    var response = await client.GetAsync($"rovers/{rover}/photos?api_key={APIKey}&earth_date={date.ToString("yyyy-M-d")}");
 
-                    MarsRoverPhotosResponse responseData = JsonConvert.DeserializeObject<MarsRoverPhotosResponse>(readTask.Result);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var read = await response.Content.ReadAsStringAsync();
 
-                    if (!Directory.Exists($@"{StoragePath}\StoredMarsRoverPhotos\{date.ToString("yyyy-M-d")}"))
-                        Directory.CreateDirectory($@"{StoragePath}\StoredMarsRoverPhotos\{date.ToString("yyyy-M-d")}");
+                        MarsRoverPhotosResponse responseData = JsonConvert.DeserializeObject<MarsRoverPhotosResponse>(read);
 
-                    Console.WriteLine("Image list pulled, pulling images to save locally");
+                        if (!Directory.Exists($@"{StoragePath}\StoredMarsRoverPhotos\{date.ToString("yyyy-M-d")}"))
+                            Directory.CreateDirectory($@"{StoragePath}\StoredMarsRoverPhotos\{date.ToString("yyyy-M-d")}");
 
-                    foreach (var photoObj in responseData.photos)
-                    {                        
-                        saveFileFromURL(new Uri(photoObj.img_src), date);
+                        LogEvent($"Image list pulled for {rover} on {date.ToString("yyyy-M-d")}, pulling images to store locally");
+
+                        List<Task> tasks = new List<Task>();
+
+                        imageCount += responseData.photos.Count;
+
+                        foreach (var photoObj in responseData.photos)
+                        {
+                            tasks.Add(saveFileFromURL(new Uri(photoObj.img_src), date));
+                        }
+
+                        Task.WaitAll(tasks.ToArray());
                     }
+                    else
+                        LogEvent($"Failed to recieve http success during MarsRoverPhotos call. Code: {response.StatusCode}", LogType.Error);
                 }
-                else
-                    LogError($"Failed to recieve http success during MarsRoverPhotos call. Code: {result.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                LogEvent(ex.Message, LogType.Error, ex);
             }
         }
 
-        public static void saveFileFromURL(Uri url, DateTime date)
+        public static async Task saveFileFromURL(Uri url, DateTime date)
         {
             string filePath = $@"{StoragePath}\StoredMarsRoverPhotos\{date.ToString("yyyy-M-d")}\{Path.GetFileName(url.LocalPath)}";
 
-            using (HttpClient client = new HttpClient())
+            try
             {
-                var res = client.GetAsync(url);
-                res.Wait();
+                using (HttpClient client = new HttpClient())
+                {
+                    var result = await client.GetAsync(url);
 
-                var result = res.Result;
-                if (result.IsSuccessStatusCode)
-                    using (HttpContent content = result.Content)
-                    {
-                        var bytesTask = content.ReadAsByteArrayAsync();
-                        bytesTask.Wait();
-                        File.WriteAllBytes(filePath, bytesTask.Result);
-                    }
-                else
-                    LogError($"Failed to recieve http success during file pull. Code: {result.StatusCode}");
+                    if (result.IsSuccessStatusCode)
+                        using (HttpContent content = result.Content)
+                        {
+                            var bytesTask = await content.ReadAsByteArrayAsync();
+                            File.WriteAllBytes(filePath, bytesTask);
+                        }
+                    else
+                        LogEvent($"Failed to recieve http success during file pull. Code: {result.StatusCode}", LogType.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogEvent(ex.Message, LogType.Error, ex);
             }
         }
 
         public static string getRoverForDate(DateTime date)
         {
-            foreach (var rover in Rovers)
+            //I don't really like all the manifests/manifest variable names here, but we'll leave it as is for now
+            var filePath = StoragePath + @"\manifest.txt";
+            if (!File.Exists(filePath))
             {
-                using (var client = new HttpClient())
+                foreach (var rover in Rovers)
                 {
-                    client.BaseAddress = new Uri(Endpoint);
-                    var responseTask = client.GetAsync($"manifests/{rover}?api_key={APIKey}");
-                    responseTask.Wait();
-
-                    var result = responseTask.Result;
-                    if (result.IsSuccessStatusCode)
+                    try
                     {
-                        var readTask = result.Content.ReadAsStringAsync();
-                        readTask.Wait();
+                        using (var client = new HttpClient())
+                        {
+                            client.BaseAddress = new Uri(Endpoint);
+                            var responseTask = client.GetAsync($"manifests/{rover}?api_key={APIKey}");
+                            responseTask.Wait();
 
-                        MarsRoverManifestResponse responseData = JsonConvert.DeserializeObject<MarsRoverManifestResponse>(readTask.Result);
+                            var result = responseTask.Result;
+                            if (result.IsSuccessStatusCode)
+                            {
+                                var readTask = result.Content.ReadAsStringAsync();
+                                readTask.Wait();
 
-                        DateTime landingDate;
-                        DateTime maxDate;
+                                MarsRoverManifestResponse responseData = JsonConvert.DeserializeObject<MarsRoverManifestResponse>(readTask.Result);
 
-                        if (DateTime.TryParse(responseData.photo_manifest.landing_date, out landingDate) && DateTime.TryParse(responseData.photo_manifest.max_date, out maxDate))
-                            if (landingDate < date && maxDate >= date)
-                                return rover;
+                                DateTime landingDate;
+                                DateTime maxDate;
 
-                        //if (!Directory.Exists($@"{StoragePath}\StoredMarsRoverManifest\{date.ToString("yyyy-M-d")}"))
-                        //    Directory.CreateDirectory($@"{StoragePath}\StoredMarsRoverManifest\{date.ToString("yyyy-M-d")}");
+                                if (DateTime.TryParse(responseData.photo_manifest.landing_date, out landingDate) && DateTime.TryParse(responseData.photo_manifest.max_date, out maxDate))
+                                    manifests.Add(new ManifestData { roverName = rover, LandingDate = landingDate, MaxDate = maxDate });
+                            }
+                            else
+                                LogEvent($"Failed to recieve http success during MarsRoverManifest call. Code: {result.StatusCode}", LogType.Error);
+                        }
                     }
-                    else
-                        LogError($"Failed to recieve http success during MarsRoverManifest call. Code: {result.StatusCode}");
+                    catch (Exception ex)
+                    {
+                        LogEvent(ex.Message, LogType.Error, ex);
+                    }
+                }                
+
+                using (StreamWriter sw = File.AppendText(filePath))
+                {
+                    foreach(var manifest in manifests)
+                        sw.WriteLine($"{manifest.roverName}|{manifest.LandingDate}|{manifest.MaxDate}");                    
                 }
             }
+            else if (manifests.Count == 0)
+            {
+                string[] ManifestData = File.ReadAllLines(Support.StoragePath + @"\manifest.txt");
+                foreach (var manifest in ManifestData)
+                {
+                    DateTime landingDate;
+                    DateTime maxDate;
+                    var split = manifest.Split('|');
+                    if (split.Length < 3)
+                        LogEvent($"Invalid record in manifest.txt, {manifest}", LogType.Error);
+                    if (DateTime.TryParse(split[1], out landingDate) && DateTime.TryParse(split[2], out maxDate))
+                        manifests.Add(new ManifestData { roverName = split[0], LandingDate = landingDate, MaxDate = maxDate });
+                }
+            }
+
+            foreach (var manifest in manifests)
+                if (manifest.LandingDate < date && manifest.MaxDate >= date)
+                    return manifest.roverName;
             //default
             return "curiosity";
         }
 
         public static List<DateTime> getDatesFromFile(string datesFilePath)
         {
-            //return new List<DateTime> { new DateTime(2016, 7, 13) }; 
             string[] dateStrings = File.ReadAllLines(datesFilePath);
             List<DateTime> dates = new List<DateTime>();
             foreach (var dateString in dateStrings)
@@ -121,24 +171,39 @@ namespace MarsRoverPhotos_API
                 if (DateTime.TryParse(dateString, out date))
                     dates.Add(date);
                 else
-                    LogError($"Invalid date in dates.txt, {dateString}");
+                    LogEvent($"Invalid date in dates.txt, {dateString}", LogType.Error);
             }
             return dates;
         }
 
-        public static void LogError(string message, Exception ex = null)
+        public static void LogEvent(string message, LogType type = LogType.Log, Exception ex = null)
         {
-            var filePath = StoragePath + @$"\Errors";
+            var filePath = StoragePath + @$"\Logs";
 
             if (!Directory.Exists(filePath))
                 Directory.CreateDirectory(filePath);
 
-            using (StreamWriter sw = File.AppendText(filePath + $@"\{DateTime.Now.ToString("yyyy-M-d")}.txt"))
+            locker.AcquireWriterLock(5000);
+
+            try
             {
-                sw.WriteLine(DateTime.Now.ToString() + ": " + message);
+                using (StreamWriter sw = File.AppendText(filePath + $@"\{type}_{DateTime.Now.ToString("yyyy-M-d")}.txt"))
+                {
+                    sw.WriteLine($"{DateTime.Now.ToString()} : {message} {ex?.InnerException} {ex?.StackTrace}");
+                }
+            }
+            finally
+            {
+                locker.ReleaseWriterLock();
             }
 
             Console.WriteLine(message);
+        }
+
+        public enum LogType
+        {
+            Log,
+            Error
         }
     }
 }

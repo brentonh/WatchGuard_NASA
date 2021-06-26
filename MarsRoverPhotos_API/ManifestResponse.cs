@@ -25,5 +25,12 @@ namespace MarsRoverPhotos_API.Manifest
         public string max_date { get; set; }
         public int total_photos { get; set; }
         public List<Photo> photos { get; set; }
-    }    
+    }
+
+    public class ManifestData
+    {
+        public string roverName { get; set; }
+        public DateTime LandingDate { get; set; }
+        public DateTime MaxDate { get; set; }
+    }
 }
