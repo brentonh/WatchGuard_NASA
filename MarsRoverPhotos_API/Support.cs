@@ -14,7 +14,7 @@ namespace MarsRoverPhotos_API
         static string Endpoint = "https://api.nasa.gov/mars-photos/api/v1/";
         static string APIKey = "PDeo30MFStY8ywaVRvaeC7RAanbh7GyXjbOv1Oqt";
         static string[] Rovers = new string[] { "curiosity", "opportunity", "spirit" };
-        //Path could be tweaked as desired, or be provided via user input
+        //Path could be tweaked as desired, modified default, user input, etc
         public static string StoragePath = new DirectoryInfo(Environment.CurrentDirectory).Parent.Parent.Parent.FullName;
 
         public static void GetMarsRoverPhotos(DateTime date)
@@ -33,8 +33,7 @@ namespace MarsRoverPhotos_API
                 if (result.IsSuccessStatusCode)
                 {
                     var readTask = result.Content.ReadAsStringAsync();
-                    readTask.Wait();
-                    
+                    readTask.Wait();                    
 
                     MarsRoverPhotosResponse responseData = JsonConvert.DeserializeObject<MarsRoverPhotosResponse>(readTask.Result);
 
@@ -64,14 +63,12 @@ namespace MarsRoverPhotos_API
 
                 var result = res.Result;
                 if (result.IsSuccessStatusCode)
-                {
                     using (HttpContent content = result.Content)
                     {
                         var bytesTask = content.ReadAsByteArrayAsync();
                         bytesTask.Wait();
                         File.WriteAllBytes(filePath, bytesTask.Result);
                     }
-                }
                 else
                     LogError($"Failed to recieve http success during file pull. Code: {result.StatusCode}");
             }
