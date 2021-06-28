@@ -1,6 +1,6 @@
 ﻿# Mars Rover API
 
-Uses the NASA API described [here](https://api.nasa.gov) to call the Mars Rover Photos API with given days (via dates.txt) as input, returning corresponding photo images as output. The application downloads and stores each image locally in a folder associated with the requested date within the project root WatchGuard_NASA/MarsRoverPhotos_API/StoredMarsRoverPhotos. Errors are stored with datetime stamp at WatchGuard_NASA/MarsRoverPhotos_API/Errors deliniated in a file per date run (not date input)
+Uses the NASA API described [here](https://api.nasa.gov) to call the Mars Rover Photos API with given days (via dates.txt in root directory) as input, storing corresponding photo images. The application downloads and stores each image locally in a folder associated with the requested date within the project root WatchGuard_NASA/MarsRoverPhotos_API/StoredMarsRoverPhotos. Logs are stored with datetime stamp and error/log distinguisher at WatchGuard_NASA/MarsRoverPhotos_API/Logs deliniated in a file per date run (not date input)
 
 ## Requested Acceptance Criteria
 
@@ -23,6 +23,4 @@ Uses the NASA API described [here](https://api.nasa.gov) to call the Mars Rover 
 
 ## TODO
 
--asynchronous processing of photo downloads to reduce total runtime
--testing and analytics
 -possibe Dockerization 

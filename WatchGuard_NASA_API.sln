@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29709.97
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarsRoverPhotos_API", "MarsRoverPhotos_API\MarsRoverPhotos_API.csproj", "{4536B922-5849-4571-95F8-A16F78329738}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MarsRoverPhotos_API", "MarsRoverPhotos_API\MarsRoverPhotos_API.csproj", "{4536B922-5849-4571-95F8-A16F78329738}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MarsRoverPhotos_API.Tests", "MarsRoverPhotos_API.Tests\MarsRoverPhotos_API.Tests.csproj", "{3201393A-43D9-4DD7-AC35-257879052538}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{4536B922-5849-4571-95F8-A16F78329738}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4536B922-5849-4571-95F8-A16F78329738}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4536B922-5849-4571-95F8-A16F78329738}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3201393A-43D9-4DD7-AC35-257879052538}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3201393A-43D9-4DD7-AC35-257879052538}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3201393A-43D9-4DD7-AC35-257879052538}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3201393A-43D9-4DD7-AC35-257879052538}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

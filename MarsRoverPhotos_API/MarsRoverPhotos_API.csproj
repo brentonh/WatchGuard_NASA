@@ -7,10 +7,13 @@
 
   <ItemGroup>
     <Compile Remove="Errors\**" />
+    <Compile Remove="Logs\**" />
     <Compile Remove="StoredMarsRoverPhotos\**" />
     <EmbeddedResource Remove="Errors\**" />
+    <EmbeddedResource Remove="Logs\**" />
     <EmbeddedResource Remove="StoredMarsRoverPhotos\**" />
     <None Remove="Errors\**" />
+    <None Remove="Logs\**" />
     <None Remove="StoredMarsRoverPhotos\**" />
   </ItemGroup>
 
